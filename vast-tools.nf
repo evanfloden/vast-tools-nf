@@ -81,7 +81,12 @@ process vast_tools_align {
     set val(name), file(reads:'*') from read_files
 
     output:
-    set val(name), file('vast_out') into vast_align_out_dirs 
+    file("vast_out/to_combine/${name}.exskX") into exskX
+    file("vast_out/to_combine/${name}.IR2") into IR2
+    file("vast_out/to_combine/${name}.IR.summary_v2.txt") into IR_summary
+    file("vast_out/to_combine/${name}.micX") into micX
+    file("vast_out/to_combine/${name}.eej2") into eej2
+    file("vast_out/to_combine/${name}.MULTI3X") into MULTI3X
 
     script:
     //
@@ -90,12 +95,12 @@ process vast_tools_align {
     def single = reads instanceof Path
     if( !single ) {
         """
-        vast-tools align --output ${name} ${reads} --IR_version ${ir_version}
+        vast-tools align --output vast_out ${reads} --IR_version ${ir_version}
         """
     }  
     else {
         """
-        vast-tools align --output ${name} ${reads} --IR_version ${ir_version}
+        vast-tools align --output vast_out ${reads} --IR_version ${ir_version}
         """
     }
 
@@ -104,10 +109,15 @@ process vast_tools_align {
 
 process combine {
     input:
-    file 'to_combine/*' from vast_align_out_dirs.toSortedList()   
+    file exskX from exskX.toSortedList()
+    file IR2 from IR2.toSortedList()
+    file IR_summary from IR_summary.toSortedList()
+    file micX from micX.toSortedList()
+    file eej2 from eej2.toSortedList()
+    file MULTI3X from MULTI3X.toSortedList()
 
     output: 
-    file 'combine/INCLUSION_TABLE.tab' into combine_tables
+    file 'INCLUSION_TABLE.tab' into combine_tables
 
     script:
     //
@@ -115,7 +125,9 @@ process combine {
     //
  
     """
-    vast-tools combine -o combine -sp ${vast_sp} --IR_version ir_version
+    mkdir -p outdir/to_combine
+    mv -t outdir/to_combine/. *.eej2 *.IR2 *.txt *.micX *.MULTI3X *.exskX
+    vast-tools combine -o outdir -sp ${vast_sp} --IR_version ${ir_version}
     """
 }
 
