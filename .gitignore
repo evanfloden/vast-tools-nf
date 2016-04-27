@@ -1,0 +1,7 @@
+data/
+results/
+tutorial/
+work/
+.nextflow.log*
+.nextflow.history
+vast-tools/VASTDB
