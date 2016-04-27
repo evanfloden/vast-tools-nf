@@ -33,8 +33,8 @@
 
 params.name          = "A Nextflow Implementation of VAST-TOOLS"
 params.reads         = "$baseDir/tutorial/reads/*.fastq"
+params.groups        = "$baseDir/tutorial/groups/groups.txt"
 params.species       = "human"
-params.groups        = "$baseDir/tutorial/groups/group_ids.txt"
 params.ir_version    = 2
 params.output        = "results/"
 
@@ -43,8 +43,8 @@ log.info "V A S T - T O O L S - N F  ~  version 0.1"
 log.info "====================================="
 log.info "name                       : ${params.name}"
 log.info "reads                      : ${params.reads}"
-log.info "species                    : ${params.species}"
 log.info "groups                     : ${params.groups}"
+log.info "species                    : ${params.species}"
 log.info "intron retention version   : ${params.ir_version}"
 log.info "output                     : ${params.output}"
 log.info "\n"
@@ -58,6 +58,8 @@ species = params.species
 if ( species == 'human' ) { vast_sp = 'Hsa' }
 
 ir_version = params.ir_version as int
+
+groups = file(params.groups)
 
 /*
  * Create a channel for read files 
@@ -108,6 +110,7 @@ process vast_tools_align {
 
 
 process combine {
+
     input:
     file exskX from exskX.toSortedList()
     file IR2 from IR2.toSortedList()
@@ -117,7 +120,7 @@ process combine {
     file MULTI3X from MULTI3X.toSortedList()
 
     output: 
-    file 'INCLUSION_TABLE.tab' into combine_tables
+    file 'outdir/INCLUSION_LEVELS*' into combine_tables
 
     script:
     //
@@ -129,6 +132,30 @@ process combine {
     mv -t outdir/to_combine/. *.eej2 *.IR2 *.txt *.micX *.MULTI3X *.exskX
     vast-tools combine -o outdir -sp ${vast_sp} --IR_version ${ir_version}
     """
+}
+
+
+
+process compare {
+
+    input:
+    file inclusion_table from combine_tables
+    file groups
+
+    output:
+    file 'diff_spliced.tab' into diff_spliced
+
+    script:
+    //
+    // VAST-Tools Compare
+    //
+
+    """
+    a=`grep 'Sample_A' ${groups} | cut -f 1 | paste -d, -s` 
+    b=`grep 'Sample_B' ${groups} | cut -f 1 | paste -d, -s`
+    vast-tools compare ${inclusion_table} -a \$a -b \$b --min_dPSI 25 --min_range 5 --outFile diff_spliced.tab --no_plot
+    """
+
 }
 
 
