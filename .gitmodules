@@ -1,0 +1,3 @@
+[submodule "vast-tools"]
+	path = vast-tools
+	url = git@github.com:vastgroup/vast-tools
