@@ -35,18 +35,22 @@ params.name          = "A Nextflow Implementation of VAST-TOOLS"
 params.reads         = "$baseDir/tutorial/reads/*.fastq"
 params.groups        = "$baseDir/tutorial/groups/groups.txt"
 params.species       = "human"
+params.readLen       = 100 
 params.ir_version    = 2
+params.expr          = false
 params.output        = "results/"
 
 
 log.info "V A S T - T O O L S - N F  ~  version 0.1"
 log.info "====================================="
-log.info "name                       : ${params.name}"
-log.info "reads                      : ${params.reads}"
-log.info "groups                     : ${params.groups}"
-log.info "species                    : ${params.species}"
-log.info "intron retention version   : ${params.ir_version}"
-log.info "output                     : ${params.output}"
+log.info "name                               : ${params.name}"
+log.info "reads (FASTQ files)                : ${params.reads}"
+log.info "groups (text file)                 : ${params.groups}"
+log.info "species (human/mouse/chicken)      : ${params.species}"
+log.info "read length (integer)              : ${params.readLen}"
+log.info "intron retention version (1 or 2)  : ${params.ir_version}"
+log.info "calculate expression (cRPKMs)      : ${params.expr}"
+log.info "output (directory)                 : ${params.output}"
 log.info "\n"
 
 
@@ -54,12 +58,33 @@ log.info "\n"
  *  Validate the species input
  */
 species = params.species
-
 if ( species == 'human' ) { vast_sp = 'Hsa' }
 
+
+/*
+ *  Determine Intron Retention Version to be Used (1 or 2)
+ */
 ir_version = params.ir_version as int
 
+
+/*
+ *  Specify the Read Length of the FASTQ files
+ */
+readLen = params.readLen as int
+
+
+/*
+ * Validate the groups file
+ /
 groups = file(params.groups)
+if ( !groups.exists() ) exit 1, "Missing groups design file: ${groups}"
+
+
+/*
+ * Check if to calculate expression
+ */
+expr = params.expr ? '--expr' : ''
+
 
 /*
  * Create a channel for read files 
@@ -97,12 +122,12 @@ process vast_tools_align {
     def single = reads instanceof Path
     if( !single ) {
         """
-        vast-tools align --output vast_out ${reads} --IR_version ${ir_version}
+        vast-tools align --output vast_out ${reads} --IR_version ${ir_version} ${expr}
         """
     }  
     else {
         """
-        vast-tools align --output vast_out ${reads} --IR_version ${ir_version}
+        vast-tools align --output vast_out ${reads} --IR_version ${ir_version} ${expr}
         """
     }
 
