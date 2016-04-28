@@ -32,7 +32,7 @@
  */
 
 params.name          = "A Nextflow Implementation of VAST-TOOLS"
-params.reads         = "$baseDir/tutorial/reads/*.fastq"
+params.reads         = "$baseDir/tutorial/reads/*{1,2}.fastq"
 params.groups        = "$baseDir/tutorial/groups/groups.txt"
 params.species       = "human"
 params.readLen       = 101 
