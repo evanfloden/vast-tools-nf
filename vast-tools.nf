@@ -35,10 +35,12 @@ params.name          = "A Nextflow Implementation of VAST-TOOLS"
 params.reads         = "$baseDir/tutorial/reads/*.fastq"
 params.groups        = "$baseDir/tutorial/groups/groups.txt"
 params.species       = "human"
-params.readLen       = 100 
+params.readLen       = 101 
 params.ir_version    = 2
 params.expr          = false
-params.output        = "results/"
+params.groupA        = "Sample_A"
+params.groupB        = "Sample_B"
+params.output        = "$baseDir/results/"
 
 
 log.info "V A S T - T O O L S - N F  ~  version 0.1"
@@ -46,6 +48,7 @@ log.info "====================================="
 log.info "name                               : ${params.name}"
 log.info "reads (FASTQ files)                : ${params.reads}"
 log.info "groups (text file)                 : ${params.groups}"
+log.info "group ids (group A : group B)      : ${params.groupA} : ${params.groupB}"
 log.info "species (human/mouse/chicken)      : ${params.species}"
 log.info "read length (integer)              : ${params.readLen}"
 log.info "intron retention version (1 or 2)  : ${params.ir_version}"
@@ -74,16 +77,23 @@ readLen = params.readLen as int
 
 
 /*
- * Validate the groups file
- /
+ * Validate the groups and group file
+ */
 groups = file(params.groups)
 if ( !groups.exists() ) exit 1, "Missing groups design file: ${groups}"
+groupA = params.groupA
+groupB = params.groupB
 
 
 /*
  * Check if to calculate expression
  */
 expr = params.expr ? '--expr' : ''
+
+/*
+ *  Specify results directory
+ */
+results_path = file(params.output)
 
 
 /*
@@ -103,6 +113,7 @@ Channel
 
 process vast_tools_align {
     tag "align: $name"
+    publishDir "$results_path/align", mode: 'copy', overwrite: 'true'
 
     input:
     set val(name), file(reads:'*') from read_files
@@ -114,31 +125,29 @@ process vast_tools_align {
     file("vast_out/to_combine/${name}.micX") into micX
     file("vast_out/to_combine/${name}.eej2") into eej2
     file("vast_out/to_combine/${name}.MULTI3X") into MULTI3X
-    file("vast_out/expression") into expression_values
+    file("vast_out/expr_out") into expression_values
 
     script:
     //
     // VAST-TOOLS Align
     //
     """
-    vast-tools align --output vast_out ${reads} -sp${vast_sp} --IR_version ${ir_version} --cores ${task.cpus} --readLen ${readLen} ${expr}
+    vast-tools align ${reads} --stepSize 25 --output vast_out --sp ${vast_sp} --IR_version ${ir_version} --cores ${task.cpus} --readLen ${readLen} ${expr}
 
     #
     # It could be nice to replace this with a condtional output if possible
     #
-    mkdir -p vast_out/expression
-
-    if [ -f ${name}.cRPKM ] && [ -e ${name}.3bias ];
+    if [ ! -f vast_out/expr_out/${name}.cRPKM ] && [ ! -f vast_out/expr_out/${name}.3bias ];
     then 
-        mv -t vast_out/expression ${name}.cRPKM ${name}.3bias
-    else
-       echo "Please use the '--expr' flag to get expression values (cRPKM)" > vast_out/expression/info.txt 
+        mkdir -p vast_out/expr_out
+        echo "Please use the '--expr' flag to get expression values (cRPKM)" > vast_out/expr_out/info.txt
     fi
     """
 }
 
 
 process combine {
+    publishDir "$results_path/combine", mode: 'copy', overwrite: 'true'
 
     input:
     file exskX from exskX.toSortedList()
@@ -149,7 +158,7 @@ process combine {
     file MULTI3X from MULTI3X.toSortedList()
 
     output: 
-    file 'outdir/INCLUSION_LEVELS*' into combine_tables
+    file 'vast_out/INCLUSION_LEVELS*' into combine_tables
 
     script:
     //
@@ -157,15 +166,16 @@ process combine {
     //
  
     """
-    mkdir -p outdir/to_combine
-    mv -t outdir/to_combine/. *.eej2 *.IR2 *.txt *.micX *.MULTI3X *.exskX
-    vast-tools combine -o outdir -sp ${vast_sp} --IR_version ${ir_version}
+    mkdir -p vast_out/to_combine
+    mv -t vast_out/to_combine/. *.eej2 *.IR2 *.txt *.micX *.MULTI3X *.exskX
+    vast-tools combine -o ./vast_out -sp ${vast_sp} --IR_version ${ir_version}
     """
 }
 
 
 
 process compare {
+    publishDir "$results_path/compare", mode: 'copy', overwrite: 'true'
 
     input:
     file inclusion_table from combine_tables
@@ -180,8 +190,8 @@ process compare {
     //
 
     """
-    a=`grep 'Sample_A' ${groups} | cut -f 1 | paste -d, -s` 
-    b=`grep 'Sample_B' ${groups} | cut -f 1 | paste -d, -s`
+    a=`grep ${groupA} ${groups} | cut -f 1 | paste -d, -s` 
+    b=`grep ${groupB} ${groups} | cut -f 1 | paste -d, -s`
     vast-tools compare ${inclusion_table} -a \$a -b \$b --min_dPSI 25 --min_range 5 --outFile diff_spliced.tab --no_plot
     """
 
