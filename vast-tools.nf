@@ -114,23 +114,27 @@ process vast_tools_align {
     file("vast_out/to_combine/${name}.micX") into micX
     file("vast_out/to_combine/${name}.eej2") into eej2
     file("vast_out/to_combine/${name}.MULTI3X") into MULTI3X
+    file("vast_out/expression") into expression_values
 
     script:
     //
     // VAST-TOOLS Align
     //
-    def single = reads instanceof Path
-    if( !single ) {
-        """
-        vast-tools align --output vast_out ${reads} --IR_version ${ir_version} ${expr}
-        """
-    }  
-    else {
-        """
-        vast-tools align --output vast_out ${reads} --IR_version ${ir_version} ${expr}
-        """
-    }
+    """
+    vast-tools align --output vast_out ${reads} -sp${vast_sp} --IR_version ${ir_version} --cores ${task.cpus} --readLen ${readLen} ${expr}
 
+    #
+    # It could be nice to replace this with a condtional output if possible
+    #
+    mkdir -p vast_out/expression
+
+    if [ -f ${name}.cRPKM ] && [ -e ${name}.3bias ];
+    then 
+        mv -t vast_out/expression ${name}.cRPKM ${name}.3bias
+    else
+       echo "Please use the '--expr' flag to get expression values (cRPKM)" > vast_out/expression/info.txt 
+    fi
+    """
 }
 
 
