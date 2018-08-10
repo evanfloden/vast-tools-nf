@@ -36,10 +36,11 @@ RUN R -e 'install.packages(c("optparse", \
 RUN R -e 'devtools::install_github("kcha/psiplot")'
 
 # install Bowtie
-RUN wget -q https://github.com/BenLangmead/bowtie/releases/download/v1.2.1.1/bowtie-1.2.1.1-linux-x86_64.zip && \
+RUN apt-get install -y python && \
+    wget -q https://github.com/BenLangmead/bowtie/releases/download/v1.2.1.1/bowtie-1.2.1.1-linux-x86_64.zip && \
     unzip bowtie-1.2.1.1-linux-x86_64.zip && \
     rm bowtie-1.2.1.1-linux-x86_64.zip && \
-    ln -s bowtie-1.2.1.1/bowtie /usr/bin/bowtie 
+    ln -s /bowtie-1.2.1.1/bowtie /usr/bin/bowtie
 
 # install VAST-TOOLS
 RUN apt-get install -y git && \
